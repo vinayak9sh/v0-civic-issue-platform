@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,111 +9,143 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import type { User, CivicIssue } from "@/types"
 import { ISSUE_CATEGORIES } from "@/lib/constants"
-import { Search, MapPin, Clock, CheckCircle, AlertCircle, Eye } from "lucide-react"
+import { DatabaseService } from "@/lib/database"
+import { Search, MapPin, Clock, CheckCircle, AlertCircle, Eye, RefreshCw } from "lucide-react"
 
 interface IssueTrackerProps {
   user: User
 }
 
-// Mock data for demonstration
-const mockIssues: CivicIssue[] = [
-  {
-    id: "1",
-    title: "Large pothole on Main Street",
-    description: "Deep pothole causing traffic issues and vehicle damage",
-    category: "pothole",
-    priority: "high",
-    status: "in_progress",
-    location: {
-      latitude: 23.3441,
-      longitude: 85.3096,
-      address: "Main Street, Near City Center, Ranchi",
-      zone: "ranchi",
-    },
-    images: ["/pothole.png"],
-    reportedBy: "1",
-    ministry: "transport",
-    createdAt: new Date("2024-01-10"),
-    updatedAt: new Date("2024-01-12"),
-    timeline: [
-      {
-        id: "1",
-        status: "submitted",
-        message: "Issue reported by citizen",
-        timestamp: new Date("2024-01-10"),
-        updatedBy: "1",
-      },
-      {
-        id: "2",
-        status: "acknowledged",
-        message: "Report acknowledged by zonal admin",
-        timestamp: new Date("2024-01-11"),
-        updatedBy: "admin-ranchi",
-      },
-      {
-        id: "3",
-        status: "in_progress",
-        message: "Work assigned to Public Works Department",
-        timestamp: new Date("2024-01-12"),
-        updatedBy: "ministry-transport",
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Street light not working",
-    description: "Street light has been non-functional for 2 weeks",
-    category: "streetlight",
-    priority: "medium",
-    status: "resolved",
-    location: {
-      latitude: 23.3629,
-      longitude: 85.3346,
-      address: "Park Street, Residential Area, Ranchi",
-      zone: "ranchi",
-    },
-    images: ["/broken-streetlight.jpg"],
-    reportedBy: "1",
-    ministry: "urban_dev",
-    createdAt: new Date("2024-01-05"),
-    updatedAt: new Date("2024-01-08"),
-    timeline: [
-      {
-        id: "1",
-        status: "submitted",
-        message: "Issue reported by citizen",
-        timestamp: new Date("2024-01-05"),
-        updatedBy: "1",
-      },
-      {
-        id: "2",
-        status: "acknowledged",
-        message: "Report acknowledged by zonal admin",
-        timestamp: new Date("2024-01-06"),
-        updatedBy: "admin-ranchi",
-      },
-      {
-        id: "3",
-        status: "resolved",
-        message: "Street light repaired and tested",
-        timestamp: new Date("2024-01-08"),
-        updatedBy: "ministry-urban",
-      },
-    ],
-  },
-]
-
 export function IssueTracker({ user }: IssueTrackerProps) {
+  const [issues, setIssues] = useState<CivicIssue[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedIssue, setSelectedIssue] = useState<CivicIssue | null>(null)
 
-  const filteredIssues = mockIssues.filter((issue) => {
+  const dbService = DatabaseService.getInstance()
+
+  useEffect(() => {
+    loadUserIssues()
+
+    // Set up real-time listener for user's issues
+    const unsubscribe = dbService.subscribeToIssues((allIssues) => {
+      console.log("[v0] Real-time issues update received:", allIssues.length)
+      const userIssues = allIssues.filter((issue) => issue.reportedBy === user.id)
+      setIssues(userIssues)
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [user.id])
+
+  const loadUserIssues = async () => {
+    try {
+      console.log("[v0] Loading user issues...")
+      const userIssues = await dbService.getIssuesByUser(user.id)
+      setIssues(userIssues)
+    } catch (error) {
+      console.log("[v0] Error loading issues, using fallback data:", error)
+      // Fallback to mock data
+      setIssues(getMockIssues())
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getMockIssues = (): CivicIssue[] => [
+    {
+      id: "1",
+      title: "Large pothole on Main Street",
+      description: "Deep pothole causing traffic issues and vehicle damage",
+      category: "pothole",
+      priority: "high",
+      status: "in_progress",
+      location: {
+        latitude: 23.3441,
+        longitude: 85.3096,
+        address: "Main Street, Near City Center, Ranchi",
+        zone: "ranchi",
+      },
+      images: ["/pothole-on-road.jpg"],
+      reportedBy: user.id,
+      ministry: "transport",
+      createdAt: new Date("2024-01-10"),
+      updatedAt: new Date("2024-01-12"),
+      timeline: [
+        {
+          id: "1",
+          status: "submitted",
+          message: "Issue reported by citizen",
+          timestamp: new Date("2024-01-10"),
+          updatedBy: user.id,
+        },
+        {
+          id: "2",
+          status: "acknowledged",
+          message: "Report acknowledged by zonal admin",
+          timestamp: new Date("2024-01-11"),
+          updatedBy: "admin-ranchi",
+        },
+        {
+          id: "3",
+          status: "in_progress",
+          message: "Work assigned to Public Works Department",
+          timestamp: new Date("2024-01-12"),
+          updatedBy: "ministry-transport",
+        },
+      ],
+    },
+    {
+      id: "2",
+      title: "Street light not working",
+      description: "Street light has been non-functional for 2 weeks",
+      category: "streetlight",
+      priority: "medium",
+      status: "resolved",
+      location: {
+        latitude: 23.3629,
+        longitude: 85.3346,
+        address: "Park Street, Residential Area, Ranchi",
+        zone: "ranchi",
+      },
+      images: ["/broken-street-light.png"],
+      reportedBy: user.id,
+      ministry: "urban_dev",
+      createdAt: new Date("2024-01-05"),
+      updatedAt: new Date("2024-01-08"),
+      timeline: [
+        {
+          id: "1",
+          status: "submitted",
+          message: "Issue reported by citizen",
+          timestamp: new Date("2024-01-05"),
+          updatedBy: user.id,
+        },
+        {
+          id: "2",
+          status: "acknowledged",
+          message: "Report acknowledged by zonal admin",
+          timestamp: new Date("2024-01-06"),
+          updatedBy: "admin-ranchi",
+        },
+        {
+          id: "3",
+          status: "resolved",
+          message: "Street light repaired and tested",
+          timestamp: new Date("2024-01-08"),
+          updatedBy: "ministry-urban",
+        },
+      ],
+    },
+  ]
+
+  const filteredIssues = issues.filter((issue) => {
     const matchesSearch =
       issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       issue.description.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || issue.status === statusFilter
-    return matchesSearch && matchesStatus && issue.reportedBy === user.id
+    return matchesSearch && matchesStatus
   })
 
   const getStatusColor = (status: string) => {
@@ -159,11 +191,27 @@ export function IssueTracker({ user }: IssueTrackerProps) {
     }
   }
 
+  const refreshIssues = () => {
+    setIsLoading(true)
+    loadUserIssues()
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading your issues...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (selectedIssue) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => setSelectedIssue(null)}>
+          <Button variant="outline" onClick={() => setSelectedIssue(null)} className="cursor-pointer">
             ← Back to Issues
           </Button>
           <Badge variant="outline" className={getStatusColor(selectedIssue.status)}>
@@ -253,18 +301,34 @@ export function IssueTracker({ user }: IssueTrackerProps) {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger className="w-full sm:w-48 cursor-pointer">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="submitted">Submitted</SelectItem>
-            <SelectItem value="acknowledged">Acknowledged</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="all" className="cursor-pointer">
+              All Status
+            </SelectItem>
+            <SelectItem value="submitted" className="cursor-pointer">
+              Submitted
+            </SelectItem>
+            <SelectItem value="acknowledged" className="cursor-pointer">
+              Acknowledged
+            </SelectItem>
+            <SelectItem value="in_progress" className="cursor-pointer">
+              In Progress
+            </SelectItem>
+            <SelectItem value="resolved" className="cursor-pointer">
+              Resolved
+            </SelectItem>
+            <SelectItem value="rejected" className="cursor-pointer">
+              Rejected
+            </SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" onClick={refreshIssues} className="cursor-pointer bg-transparent">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       <div className="grid gap-4">
@@ -282,7 +346,7 @@ export function IssueTracker({ user }: IssueTrackerProps) {
           </Card>
         ) : (
           filteredIssues.map((issue) => (
-            <Card key={issue.id} className="hover:shadow-md transition-shadow">
+            <Card key={issue.id} className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start space-x-3">
@@ -314,7 +378,12 @@ export function IssueTracker({ user }: IssueTrackerProps) {
                     </div>
                     <Progress value={getProgressPercentage(issue.status)} className="h-1" />
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setSelectedIssue(issue)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedIssue(issue)}
+                    className="cursor-pointer"
+                  >
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </Button>

@@ -3,13 +3,32 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Camera, TrendingUp, CheckCircle, Phone, Mail, Globe } from "lucide-react"
+import { MapPin, Camera, TrendingUp, CheckCircle, Phone, Mail, Globe, ExternalLink } from "lucide-react"
+import { MINISTRIES } from "@/lib/constants"
+import { useStatistics } from "@/hooks/use-statistics"
 
 interface HomePageProps {
   onShowLogin: () => void
 }
 
 export function HomePage({ onShowLogin }: HomePageProps) {
+  const { statistics, isLoading, resolutionRate } = useStatistics()
+
+  const ministryPortals = {
+    urban_dev: "https://udd.jharkhand.gov.in/",
+    rural_dev: "https://rd.jharkhand.gov.in/",
+    environment: "https://forest.jharkhand.gov.in/",
+    transport: "https://transport.jharkhand.gov.in/",
+    water: "https://jal.jharkhand.gov.in/",
+  }
+
+  const handleMinistryClick = (ministryId: string) => {
+    const url = ministryPortals[ministryId as keyof typeof ministryPortals]
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -25,7 +44,7 @@ export function HomePage({ onShowLogin }: HomePageProps) {
                 <p className="text-xs text-muted-foreground">Government of Jharkhand</p>
               </div>
             </div>
-            <Button onClick={onShowLogin} variant="outline" size="sm">
+            <Button onClick={onShowLogin} variant="outline" size="sm" className="cursor-pointer bg-transparent">
               Login
             </Button>
           </div>
@@ -48,10 +67,10 @@ export function HomePage({ onShowLogin }: HomePageProps) {
               resolution in real-time.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={onShowLogin} className="text-lg px-8">
+              <Button size="lg" onClick={onShowLogin} className="text-lg px-8 cursor-pointer">
                 Start Reporting Issues
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent">
+              <Button size="lg" variant="outline" className="text-lg px-8 bg-transparent cursor-pointer">
                 Learn More
               </Button>
             </div>
@@ -150,11 +169,15 @@ export function HomePage({ onShowLogin }: HomePageProps) {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <div className="text-3xl md:text-4xl font-bold mb-2">2,500+</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">
+                {isLoading ? "..." : statistics.issuesReported.toLocaleString()}
+              </div>
               <p className="text-primary-foreground/80">Issues Reported</p>
             </div>
             <div>
-              <div className="text-3xl md:text-4xl font-bold mb-2">1,800+</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">
+                {isLoading ? "..." : statistics.issuesResolved.toLocaleString()}
+              </div>
               <p className="text-primary-foreground/80">Issues Resolved</p>
             </div>
             <div>
@@ -162,7 +185,7 @@ export function HomePage({ onShowLogin }: HomePageProps) {
               <p className="text-primary-foreground/80">Districts Covered</p>
             </div>
             <div>
-              <div className="text-3xl md:text-4xl font-bold mb-2">72%</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">{isLoading ? "..." : `${resolutionRate}%`}</div>
               <p className="text-primary-foreground/80">Resolution Rate</p>
             </div>
           </div>
@@ -176,7 +199,7 @@ export function HomePage({ onShowLogin }: HomePageProps) {
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
             Join thousands of citizens already making Jharkhand cleaner and better for everyone
           </p>
-          <Button size="lg" onClick={onShowLogin} className="text-lg px-8">
+          <Button size="lg" onClick={onShowLogin} className="text-lg px-8 cursor-pointer">
             Get Started Today
           </Button>
         </div>
@@ -185,7 +208,7 @@ export function HomePage({ onShowLogin }: HomePageProps) {
       {/* Footer */}
       <footer className="bg-muted py-12">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-5 gap-8">
             <div>
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -202,25 +225,42 @@ export function HomePage({ onShowLogin }: HomePageProps) {
               <h4 className="font-semibold mb-3">Quick Links</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <a href="#" className="hover:text-foreground">
+                  <a href="#" className="hover:text-foreground cursor-pointer">
                     How it Works
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-foreground">
+                  <a href="#" className="hover:text-foreground cursor-pointer">
                     Issue Types
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-foreground">
+                  <a href="#" className="hover:text-foreground cursor-pointer">
                     Success Stories
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-foreground">
+                  <a href="#" className="hover:text-foreground cursor-pointer">
                     FAQ
                   </a>
                 </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-3">Ministry Portals</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                {MINISTRIES.map((ministry) => (
+                  <li key={ministry.id}>
+                    <button
+                      onClick={() => handleMinistryClick(ministry.id)}
+                      className="hover:text-foreground cursor-pointer flex items-center gap-1 text-left"
+                    >
+                      {ministry.name}
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -229,15 +269,26 @@ export function HomePage({ onShowLogin }: HomePageProps) {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Phone className="w-4 h-4" />
-                  <span>1800-XXX-XXXX</span>
+                  <a href="tel:1800-XXX-XXXX" className="hover:text-foreground cursor-pointer">
+                    1800-XXX-XXXX
+                  </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
-                  <span>support@janseva.gov.in</span>
+                  <a href="mailto:support@janseva.gov.in" className="hover:text-foreground cursor-pointer">
+                    support@janseva.gov.in
+                  </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <Globe className="w-4 h-4" />
-                  <span>jharkhand.gov.in</span>
+                  <a
+                    href="https://jharkhand.gov.in"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-foreground cursor-pointer"
+                  >
+                    jharkhand.gov.in
+                  </a>
                 </li>
               </ul>
             </div>

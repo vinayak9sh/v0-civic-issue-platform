@@ -72,3 +72,12 @@ export interface Badge {
   icon: string
   earnedAt: Date
 }
+
+export interface Statistics {
+  issuesReported: number
+  issuesResolved: number
+  activeUsers: number
+  averageResolutionTime: number
+}
+
+export type Issue = CivicIssue

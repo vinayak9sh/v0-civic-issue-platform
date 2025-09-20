@@ -48,10 +48,11 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
         title: "Login Successful",
         description: `Welcome back, ${user.name}!`,
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.log("[v0] Login error:", error.message)
       toast({
         title: "Login Failed",
-        description: "Invalid credentials. Please try again.",
+        description: error.message || "Invalid credentials. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -64,22 +65,26 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
     setIsLoading(true)
 
     try {
-      const user = await authService.register({
-        name: registerData.name,
-        email: registerData.email,
-        role: registerData.role,
-        zone: registerData.zone || undefined,
-        ministry: registerData.ministry || undefined,
-      })
+      const user = await authService.register(
+        {
+          name: registerData.name,
+          email: registerData.email,
+          role: registerData.role,
+          zone: registerData.zone || undefined,
+          ministry: registerData.ministry || undefined,
+        },
+        registerData.password,
+      )
       onLogin(user)
       toast({
         title: "Registration Successful",
         description: `Welcome to JanSeva, ${user.name}!`,
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.log("[v0] Registration error:", error.message)
       toast({
         title: "Registration Failed",
-        description: "Please try again.",
+        description: error.message || "Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -92,7 +97,7 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4 p-2">
+            <Button variant="ghost" size="sm" onClick={onBack} className="absolute top-4 left-4 p-2 cursor-pointer">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           )}
@@ -109,8 +114,12 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsTrigger value="login" className="cursor-pointer">
+                Login
+              </TabsTrigger>
+              <TabsTrigger value="register" className="cursor-pointer">
+                Register
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -121,13 +130,19 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
                     value={loginData.role}
                     onValueChange={(value: User["role"]) => setLoginData({ ...loginData, role: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="citizen">Citizen</SelectItem>
-                      <SelectItem value="zonal_admin">Zonal Admin</SelectItem>
-                      <SelectItem value="ministry_admin">Ministry Admin</SelectItem>
+                      <SelectItem value="citizen" className="cursor-pointer">
+                        Citizen
+                      </SelectItem>
+                      <SelectItem value="zonal_admin" className="cursor-pointer">
+                        Zonal Admin
+                      </SelectItem>
+                      <SelectItem value="ministry_admin" className="cursor-pointer">
+                        Ministry Admin
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -156,7 +171,7 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
                   />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
 
@@ -203,8 +218,9 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
                     type="password"
                     value={registerData.password}
                     onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                    placeholder="Create a password"
+                    placeholder="Create a password (min 6 characters)"
                     required
+                    minLength={6}
                   />
                 </div>
 
@@ -214,18 +230,80 @@ export function LoginForm({ onLogin, onBack }: LoginFormProps) {
                     value={registerData.role}
                     onValueChange={(value: User["role"]) => setRegisterData({ ...registerData, role: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="citizen">Citizen</SelectItem>
-                      <SelectItem value="zonal_admin">Zonal Admin</SelectItem>
-                      <SelectItem value="ministry_admin">Ministry Admin</SelectItem>
+                      <SelectItem value="citizen" className="cursor-pointer">
+                        Citizen
+                      </SelectItem>
+                      <SelectItem value="zonal_admin" className="cursor-pointer">
+                        Zonal Admin
+                      </SelectItem>
+                      <SelectItem value="ministry_admin" className="cursor-pointer">
+                        Ministry Admin
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                {registerData.role === "zonal_admin" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="register-zone">Zone</Label>
+                    <Select
+                      value={registerData.zone}
+                      onValueChange={(value) => setRegisterData({ ...registerData, zone: value })}
+                    >
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder="Select your zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ranchi" className="cursor-pointer">
+                          Ranchi
+                        </SelectItem>
+                        <SelectItem value="dhanbad" className="cursor-pointer">
+                          Dhanbad
+                        </SelectItem>
+                        <SelectItem value="jamshedpur" className="cursor-pointer">
+                          Jamshedpur
+                        </SelectItem>
+                        <SelectItem value="bokaro" className="cursor-pointer">
+                          Bokaro
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {registerData.role === "ministry_admin" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="register-ministry">Ministry</Label>
+                    <Select
+                      value={registerData.ministry}
+                      onValueChange={(value) => setRegisterData({ ...registerData, ministry: value })}
+                    >
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder="Select your ministry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="urban_dev" className="cursor-pointer">
+                          Urban Development
+                        </SelectItem>
+                        <SelectItem value="public_works" className="cursor-pointer">
+                          Public Works
+                        </SelectItem>
+                        <SelectItem value="water_sanitation" className="cursor-pointer">
+                          Water & Sanitation
+                        </SelectItem>
+                        <SelectItem value="electricity" className="cursor-pointer">
+                          Electricity
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
                   {isLoading ? "Registering..." : "Register"}
                 </Button>
               </form>

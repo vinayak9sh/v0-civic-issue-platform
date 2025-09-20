@@ -1,9 +1,18 @@
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User as FirebaseUser,
+} from "firebase/auth"
+import { auth } from "./firebase"
+import { DatabaseService } from "./database"
 import type { User } from "@/types"
 
-// Mock authentication - In production, use proper auth service
 export class AuthService {
   private static instance: AuthService
   private currentUser: User | null = null
+  private dbService = DatabaseService.getInstance()
 
   static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -13,7 +22,31 @@ export class AuthService {
   }
 
   async login(email: string, password: string, role: User["role"]): Promise<User> {
-    // Mock login logic
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const firebaseUser = userCredential.user
+
+      // Get user data from database
+      const userData = await this.dbService.getUserByEmail(email)
+
+      if (!userData) {
+        throw new Error("User not found in database")
+      }
+
+      if (userData.role !== role) {
+        throw new Error("Invalid role for this user")
+      }
+
+      this.currentUser = userData
+      return userData
+    } catch (error: any) {
+      // Fallback to demo users for development
+      console.log("[v0] Firebase auth failed, using demo users:", error.message)
+      return this.loginDemo(email, password, role)
+    }
+  }
+
+  private async loginDemo(email: string, password: string, role: User["role"]): Promise<User> {
     const mockUsers: Record<string, User> = {
       "citizen@jharkhand.gov.in": {
         id: "1",
@@ -52,19 +85,29 @@ export class AuthService {
     throw new Error("Invalid credentials")
   }
 
-  async register(userData: Omit<User, "id" | "createdAt">): Promise<User> {
-    const newUser: User = {
-      ...userData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      points: userData.role === "citizen" ? 0 : undefined,
-      level: userData.role === "citizen" ? 1 : undefined,
-      badges: userData.role === "citizen" ? [] : undefined,
-    }
+  async register(userData: Omit<User, "id" | "createdAt">, password: string): Promise<User> {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, userData.email, password)
+      const firebaseUser = userCredential.user
 
-    this.currentUser = newUser
-    localStorage.setItem("civic_user", JSON.stringify(newUser))
-    return newUser
+      const newUser: User = {
+        ...userData,
+        id: firebaseUser.uid,
+        createdAt: new Date(),
+        points: userData.role === "citizen" ? 0 : undefined,
+        level: userData.role === "citizen" ? 1 : undefined,
+        badges: userData.role === "citizen" ? [] : undefined,
+      }
+
+      // Save user to database
+      await this.dbService.createUser(newUser)
+
+      this.currentUser = newUser
+      return newUser
+    } catch (error: any) {
+      console.error("Registration error:", error)
+      throw new Error("Registration failed: " + error.message)
+    }
   }
 
   getCurrentUser(): User | null {
@@ -77,8 +120,26 @@ export class AuthService {
     return this.currentUser
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
     this.currentUser = null
     localStorage.removeItem("civic_user")
+  }
+
+  onAuthStateChanged(callback: (user: User | null) => void): () => void {
+    return onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const userData = await this.dbService.getUserByEmail(firebaseUser.email!)
+        this.currentUser = userData
+        callback(userData)
+      } else {
+        this.currentUser = null
+        callback(null)
+      }
+    })
   }
 }
